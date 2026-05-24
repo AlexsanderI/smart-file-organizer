@@ -106,6 +106,15 @@ The application must not try to understand the semantic content of PDFs, images,
 
 Goal: build the local application foundation and sort files by extension.
 
+Phase 1 rules:
+
+- Strict extension-based taxonomy only: `01_Documents`, `02_Media`, `03_Archives`, `04_Installers`, `05_Code`, `06_To_Review`, `07_Other`.
+- No semantic categories such as Finance, Personal, or Work in Phase 1; semantic sorting is reserved for Phase 2+.
+- Non-Recursive Scan Rule: scan only regular top-level files in the selected folder root; do not scan subfolders recursively.
+- Overwrite Prevention Rule: if a target file conflict exists, skip the file by default, mark it as `Conflict` in the preview table, and never overwrite user data.
+- Undo Safety Rule: undo must be best-effort and file-level atomic based on the operation record; if one file fails to undo, continue undoing the remaining files.
+- Operation history must be stored in Electron's `app.getPath("userData")/history.json`, not in the selected folder.
+
 ### Included in Phase 1
 
 - Electron desktop application
@@ -155,10 +164,10 @@ Possible features:
 
 Examples:
 
-- `invoice_2026.pdf` → `01_Finance`
-- `bewerbung.pdf` → `03_Work`
-- `IMG_20260524.jpg` → `04_Media/Photos`
-- `Screenshot_2026.png` → `04_Media/Screenshots`
+- `invoice_2026.pdf` → `01_Documents` in Phase 1; Phase 2 may later route such files to semantic folders like Finance.
+- `bewerbung.pdf` → `01_Documents` in Phase 1; Phase 2 may later route such files to Work.
+- `IMG_20260524.jpg` → `02_Media`
+- `Screenshot_2026.png` → `02_Media`
 
 ---
 
@@ -216,23 +225,10 @@ Then the application must create the following structure inside it:
 
 Selected_Folder/
 │
-├── 01_Finance/
-│
-├── 02_Personal/
-│
-├── 03_Work/
-│
-├── 04_Media/
-│ ├── Photos/
-│ ├── Screenshots/
-│ ├── Videos/
-│ └── Audio/
-│
-├── 05_Tech/
-│ ├── Installers/
-│ ├── Archives/
-│ └── Code/
-│
+├── 01_Documents/
+├── 02_Media/
+├── 03_Archives/
+├── 04_Installers/
+├── 05_Code/
 ├── 06_To_Review/
-│
 └── 07_Other/
