@@ -232,3 +232,41 @@ Selected_Folder/
 ├── 05_Code/
 ├── 06_To_Review/
 └── 07_Other/
+
+## Product North Star
+
+The long-term goal of Smart File Organizer is not merely to sort files by extension.
+
+The long-term goal is to help users clean a cluttered Downloads folder by organizing files into meaningful, human-friendly categories such as:
+
+- Invoices
+- Insurance documents
+- Housing documents
+- Work documents
+- Personal documents
+- Document photos
+- Personal photos
+- Screenshots
+- Installers
+- Archives
+- To Review
+
+The final product should help the user understand what each file likely is and where it should go before any move operation happens.
+
+However, Phase 1 intentionally does not implement semantic classification.
+
+Phase 1 exists to build the safe local foundation:
+
+- folder selection
+- deterministic scan
+- preview before moving
+- explicit confirmation
+- safe move operation
+- local operation history
+- undo latest operation
+- overwrite prevention
+- no deletion
+
+Semantic classification is a future layer built on top of this foundation.
+
+The project must not be considered complete when extension-based sorting works. Extension-based sorting is only the first technical milestone.
