@@ -3,6 +3,8 @@ import { mockScan } from "./mock/mockScan";
 import StatusBadge from "./components/StatusBadge";
 import SummaryCard from "./components/SummaryCard";
 import TopControls from "./components/TopControls";
+import ConfirmMoveModal from "./components/ConfirmMoveModal";
+import ConfirmUndoModal from "./components/ConfirmUndoModal";
 import type { ScannedFile } from "./shared/types";
 
 type FileFilter = "all" | "selected" | "ready" | "conflicts" | "to-review";
@@ -565,56 +567,18 @@ export default function App() {
 
       {/* Move Confirmation Modal */}
       {showMoveModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-          <div className="w-96 bg-slate-900 border border-slate-800 rounded-xl p-6">
-            <h3 className="text-lg font-semibold">Confirm Move</h3>
-            <p className="text-slate-400 text-sm mt-2">
-              You are about to move selected files. Conflicts will be skipped.
-              No files will be deleted.
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={() => setShowMoveModal(false)}
-                className="px-3 py-2 bg-transparent border border-slate-700 rounded hover:bg-slate-800"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={moveSelected}
-                className="px-3 py-2 bg-slate-800 border border-slate-700 rounded hover:bg-slate-800"
-              >
-                Move Selected Files
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmMoveModal
+          onCancel={() => setShowMoveModal(false)}
+          onConfirm={moveSelected}
+        />
       )}
 
       {/* Undo Confirmation Modal */}
       {showUndoModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-          <div className="w-96 bg-slate-900 border border-slate-800 rounded-xl p-6">
-            <h3 className="text-lg font-semibold">Confirm Undo</h3>
-            <p className="text-slate-400 text-sm mt-2">
-              This will attempt to restore files from the latest operation. Undo
-              is best-effort and file-level atomic.
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={() => setShowUndoModal(false)}
-                className="px-3 py-2 bg-transparent border border-slate-700 rounded hover:bg-slate-800"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={undoLatest}
-                className="px-3 py-2 bg-slate-800 border border-slate-700 rounded hover:bg-slate-800"
-              >
-                Undo Latest Operation
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmUndoModal
+          onCancel={() => setShowUndoModal(false)}
+          onConfirm={undoLatest}
+        />
       )}
     </div>
   );
