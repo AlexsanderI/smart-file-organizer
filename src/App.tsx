@@ -1,6 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { mockScan } from "./mock/mockScan";
+import StatusBadge from "./components/StatusBadge";
+import SummaryCard from "./components/SummaryCard";
+import TopControls from "./components/TopControls";
 import type { ScannedFile } from "./shared/types";
+
+type FileFilter = "all" | "selected" | "ready" | "conflicts" | "to-review";
 
 function bytesToKB(n: number) {
   return `${Math.round(n / 1024)} KB`;
@@ -24,6 +29,7 @@ export default function App() {
   const [expandDetailsMode, setExpandDetailsMode] = useState<
     "none" | "manual" | "selected" | "conflicts"
   >("none");
+  const [activeFilter, setActiveFilter] = useState<FileFilter>("all");
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((s) => ({ ...s, [id]: !s[id] }));
@@ -81,6 +87,8 @@ export default function App() {
         return "border-l-4 border-slate-500/60 bg-slate-900/70";
       case "Moved":
         return "border-l-4 border-cyan-400/60 bg-slate-900/70";
+      case "Undone":
+        return "border-l-4 border-violet-400/60 bg-slate-900/70";
       default:
         return "border-l-4 border-slate-700/60 bg-slate-900/70";
     }
@@ -101,13 +109,13 @@ export default function App() {
     setSelectedIds((s) => ({ ...s, [id]: !s[id] }));
   const selectAll = () => {
     const all: Record<string, boolean> = {};
-    files.forEach((f) => (all[f.id] = true));
+    visibleFiles.forEach((f) => (all[f.id] = true));
     setSelectedIds(all);
   };
   const deselectAll = () => setSelectedIds({});
   const selectOnlyReady = () => {
     const sel: Record<string, boolean> = {};
-    files
+    visibleFiles
       .filter((f) => f.status === "Ready")
       .forEach((f) => (sel[f.id] = true));
     setSelectedIds(sel);
@@ -115,7 +123,7 @@ export default function App() {
   const deselectConflicts = () => {
     const sel = { ...selectedIds };
     files
-      .filter((f) => f.status === "Conflict")
+      .filter((f) => f.status === "Conflict" || f.status === "Failed")
       .forEach((f) => delete sel[f.id]);
     setSelectedIds(sel);
   };
@@ -180,6 +188,39 @@ export default function App() {
     (f) => f.status === "Conflict" || f.status === "Failed",
   ).length;
   const canUndo = files.some((f) => f.status === "Moved");
+
+  const visibleFiles = useMemo(() => {
+    switch (activeFilter) {
+      case "selected":
+        return files.filter((f) => selectedIds[f.id]);
+      case "ready":
+        return files.filter((f) => f.status === "Ready");
+      case "conflicts":
+        return files.filter(
+          (f) => f.status === "Conflict" || f.status === "Failed",
+        );
+      case "to-review":
+        return files.filter((f) => f.status === "To Review");
+      default:
+        return files;
+    }
+  }, [activeFilter, files, selectedIds]);
+
+  const filterLabel = useMemo(() => {
+    switch (activeFilter) {
+      case "selected":
+        return `Selected files — ${visibleFiles.length}`;
+      case "ready":
+        return `Ready files — ${visibleFiles.length}`;
+      case "conflicts":
+        return `Conflicts — ${visibleFiles.length}`;
+      case "to-review":
+        return `To Review — ${visibleFiles.length}`;
+      default:
+        return `All files — ${visibleFiles.length}`;
+    }
+  }, [activeFilter, visibleFiles.length]);
+
   const openMoveModal = () => setShowMoveModal(true);
   const openUndoModal = () => setShowUndoModal(true);
 
@@ -189,7 +230,6 @@ export default function App() {
         <aside className="h-full overflow-hidden bg-slate-900 border border-slate-800 rounded-2xl p-3 flex flex-col gap-3">
           <div>
             <h1 className="text-lg font-semibold">Smart File Organizer</h1>
-            <p className="text-slate-400 text-xs">Phase 1 — mock preview</p>
           </div>
 
           <div className="text-slate-400 text-xs mb-2">Selected folder</div>
@@ -201,26 +241,46 @@ export default function App() {
           </div>
 
           <div className="grid grid-cols-2 gap-2 mt-2">
-            <div className="p-2 border border-slate-800 rounded bg-slate-900 text-center">
-              <div className="text-slate-400 text-xs">Total</div>
-              <div className="text-lg font-medium">{summary.total}</div>
-            </div>
-            <div className="p-2 border border-slate-800 rounded bg-slate-900 text-center">
-              <div className="text-slate-400 text-xs">Selected</div>
-              <div className="text-lg font-medium">{selectedCount}</div>
-            </div>
-            <div className="p-2 border border-slate-800 rounded bg-slate-900 text-center">
-              <div className="text-slate-400 text-xs">Ready</div>
-              <div className="text-lg font-medium">{summary.ready}</div>
-            </div>
-            <div className="p-2 border border-slate-800 rounded bg-slate-900 text-center">
-              <div className="text-slate-400 text-xs">Conflicts</div>
-              <div className="text-lg font-medium">{summary.conflicts}</div>
-            </div>
-            <div className="p-2 border border-slate-800 rounded bg-slate-900 text-center col-span-2">
-              <div className="text-slate-400 text-xs">To Review</div>
-              <div className="text-lg font-medium">{summary.toReview}</div>
-            </div>
+            <SummaryCard
+              label="Total"
+              count={summary.total}
+              isActive={activeFilter === "all"}
+              onClick={() => setActiveFilter("all")}
+              activeClass="border-emerald-400/40 bg-slate-800"
+              inactiveClass="border-slate-800 bg-slate-900 hover:bg-slate-800 hover:border-slate-600"
+            />
+            <SummaryCard
+              label="Selected"
+              count={selectedCount}
+              isActive={activeFilter === "selected"}
+              onClick={() => setActiveFilter("selected")}
+              activeClass="border-emerald-400/40 bg-slate-800"
+              inactiveClass="border-slate-800 bg-slate-900 hover:bg-slate-800 hover:border-slate-600"
+            />
+            <SummaryCard
+              label="Ready"
+              count={summary.ready}
+              isActive={activeFilter === "ready"}
+              onClick={() => setActiveFilter("ready")}
+              activeClass="border-emerald-400/40 bg-slate-800"
+              inactiveClass="border-slate-800 bg-slate-900 hover:bg-slate-800 hover:border-slate-600"
+            />
+            <SummaryCard
+              label="Conflicts"
+              count={summary.conflicts}
+              isActive={activeFilter === "conflicts"}
+              onClick={() => setActiveFilter("conflicts")}
+              activeClass="border-amber-400/40 bg-slate-800"
+              inactiveClass="border-slate-800 bg-slate-900 hover:bg-slate-800 hover:border-slate-600"
+            />
+            <SummaryCard
+              label="To Review"
+              count={summary.toReview}
+              isActive={activeFilter === "to-review"}
+              onClick={() => setActiveFilter("to-review")}
+              activeClass="border-sky-400/40 bg-slate-800"
+              inactiveClass="border-slate-800 bg-slate-900 hover:bg-slate-800 hover:border-slate-600"
+            />
           </div>
 
           <div className="space-y-2">
@@ -245,10 +305,10 @@ export default function App() {
             <button
               onClick={openMoveModal}
               disabled={!anySelected}
-              className={`w-full px-3 py-2 border rounded text-sm ${
+              className={`w-full px-3 py-2 border rounded text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
                 anySelected
-                  ? "bg-slate-800 border-slate-700 hover:bg-slate-800"
-                  : "bg-slate-950 border-slate-700 text-slate-600 cursor-not-allowed"
+                  ? "bg-blue-600 text-white border-blue-500 hover:bg-blue-500"
+                  : "bg-slate-950 border-slate-700 text-slate-600"
               }`}
             >
               Move Selected Files
@@ -259,7 +319,7 @@ export default function App() {
               className={`w-full px-3 py-2 border rounded text-sm ${
                 canUndo
                   ? "bg-transparent border-slate-700 hover:bg-slate-800"
-                  : "bg-slate-950 border-slate-700 text-slate-600 cursor-not-allowed"
+                  : "bg-slate-950 border-slate-700 text-slate-600"
               }`}
             >
               Undo Latest Operation
@@ -279,80 +339,18 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                {/* Selection Controls */}
-                <div className="flex flex-wrap gap-1">
-                  <button
-                    onClick={selectAll}
-                    className="px-3 py-1 bg-slate-800 border border-slate-700 rounded hover:bg-slate-800 text-xs"
-                  >
-                    Select All
-                  </button>
-                  <button
-                    onClick={clearSelection}
-                    className="px-3 py-1 bg-transparent border border-slate-700 rounded hover:bg-slate-800 text-xs"
-                  >
-                    Deselect All
-                  </button>
-                  <button
-                    onClick={selectOnlyReady}
-                    className="px-3 py-1 bg-transparent border border-slate-700 rounded hover:bg-slate-800 text-xs"
-                  >
-                    Select Only Ready
-                  </button>
-                  <button
-                    onClick={deselectConflicts}
-                    className="px-3 py-1 bg-transparent border border-slate-700 rounded hover:bg-slate-800 text-xs"
-                  >
-                    Deselect Conflicts
-                  </button>
-                </div>
-
-                {/* Details Controls */}
-                <div className="flex flex-wrap gap-1">
-                  <button
-                    onClick={toggleSelectedDetails}
-                    disabled={selectedCount === 0}
-                    className={`px-3 py-1 border rounded text-xs transition ${
-                      selectedCount === 0
-                        ? "bg-slate-950 border-slate-700 text-slate-600 cursor-not-allowed"
-                        : expandDetailsMode === "selected"
-                          ? "bg-slate-800 border-slate-700"
-                          : "bg-transparent border-slate-700 hover:bg-slate-800"
-                    }`}
-                  >
-                    {expandDetailsMode === "selected"
-                      ? `Hide Sel (${selectedCount})`
-                      : `Show Sel (${selectedCount})`}
-                  </button>
-                  <button
-                    onClick={toggleConflictDetails}
-                    disabled={conflictCount === 0}
-                    className={`px-3 py-1 border rounded text-xs transition ${
-                      conflictCount === 0
-                        ? "bg-slate-950 border-slate-700 text-slate-600 cursor-not-allowed"
-                        : expandDetailsMode === "conflicts"
-                          ? "bg-slate-800 border-slate-700"
-                          : "bg-transparent border-slate-700 hover:bg-slate-800"
-                    }`}
-                  >
-                    {expandDetailsMode === "conflicts"
-                      ? `Hide Conf (${conflictCount})`
-                      : `Show Conf (${conflictCount})`}
-                  </button>
-                  <button
-                    onClick={hideAllDetails}
-                    disabled={expandDetailsMode === "none"}
-                    className={`px-3 py-1 border rounded text-xs ${
-                      expandDetailsMode === "none"
-                        ? "bg-slate-950 border-slate-700 text-slate-600 cursor-not-allowed"
-                        : "bg-transparent border-slate-700 hover:bg-slate-800"
-                    }`}
-                  >
-                    Hide All
-                  </button>
-                </div>
-              </div>
+              <TopControls
+                selectedCount={selectedCount}
+                conflictCount={conflictCount}
+                expandDetailsMode={expandDetailsMode}
+                onSelectAll={selectAll}
+                onClearSelection={clearSelection}
+                onSelectOnlyReady={selectOnlyReady}
+                onDeselectConflicts={deselectConflicts}
+                onToggleSelectedDetails={toggleSelectedDetails}
+                onToggleConflictDetails={toggleConflictDetails}
+                onHideAllDetails={hideAllDetails}
+              />
             </div>
           </header>
 
@@ -363,13 +361,16 @@ export default function App() {
                   {expandDetailsMode === "none"
                     ? "Click View on a row or use bulk controls to expand details."
                     : expandDetailsMode === "selected"
-                      ? `Showing details for ${selectedCount} selected file(s). Click Hide Selected or Hide All to collapse.`
+                      ? `Showing details for ${selectedCount} selected file(s). Click Hide Selected Details or Hide Details to collapse.`
                       : expandDetailsMode === "conflicts"
-                        ? `Showing details for ${conflictCount} conflict file(s). Click Hide Conflicts or Hide All to collapse.`
-                        : "Individual row details are expanded. Click View/Hide per row or Hide All."}
+                        ? `Showing details for ${conflictCount} conflict file(s). Click Hide Conflict Details or Hide Details to collapse.`
+                        : "Individual row details are expanded. Click View/Hide per row or Hide Details."}
                 </div>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="border-b border-slate-800 bg-slate-950/90 px-4 py-3 text-sm text-slate-300">
+                  Showing: {filterLabel}
+                </div>
                 <table className="w-full table-fixed">
                   <thead className="bg-slate-900 border-b border-slate-800 sticky top-0">
                     <tr className="text-left text-slate-400 text-sm">
@@ -377,171 +378,183 @@ export default function App() {
                       <th className="min-w-[220px] px-3 py-2">Name</th>
                       <th className="w-[120px] px-3 py-2">Ext</th>
                       <th className="w-[100px] px-3 py-2">Size</th>
-                      <th className="w-[160px] px-3 py-2">Category</th>
-                      <th className="w-[180px] px-3 py-2">Target</th>
+                      <th className="w-[260px] px-3 py-2">Destination</th>
                       <th className="w-[130px] px-3 py-2">Status</th>
                       <th className="w-[94px] px-3 py-2">Details</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {files.map((f) => (
-                      <React.Fragment key={f.id}>
-                        <tr className="border-b border-slate-800 hover:bg-slate-800">
-                          <td className="w-[48px] px-3 py-2">
-                            <input
-                              type="checkbox"
-                              checked={!!selectedIds[f.id]}
-                              onChange={() => toggleSelect(f.id)}
-                            />
-                          </td>
-                          <td
-                            className="min-w-[220px] px-3 py-2 text-sm whitespace-nowrap truncate"
-                            title={f.name}
-                          >
-                            {f.name}
-                          </td>
-                          <td
-                            className="w-[120px] px-3 py-2 text-sm whitespace-nowrap truncate"
-                            title={f.extension}
-                          >
-                            {f.extension}
-                          </td>
-                          <td
-                            className="w-[100px] px-3 py-2 text-sm whitespace-nowrap truncate"
-                            title={bytesToKB(f.size)}
-                          >
-                            {bytesToKB(f.size)}
-                          </td>
-                          <td
-                            className="w-[160px] px-3 py-2 text-sm whitespace-nowrap truncate"
-                            title={f.category}
-                          >
-                            {f.category}
-                          </td>
-                          <td
-                            className="w-[180px] px-3 py-2 text-sm whitespace-nowrap truncate"
-                            title={f.target}
-                          >
-                            {f.target}
-                          </td>
-                          <td
-                            className="w-[130px] px-3 py-2 text-sm whitespace-nowrap truncate"
-                            title={f.status}
-                          >
-                            {f.status}
-                          </td>
-                          <td className="w-[94px] px-3 py-2">
-                            <button
-                              onClick={() => toggleExpanded(f.id)}
-                              className={`inline-flex items-center gap-1 rounded-full border border-slate-700 px-2 py-1 text-xs font-medium transition ${
-                                expandedIds[f.id]
-                                  ? "bg-slate-800 text-slate-100"
-                                  : "bg-slate-950 text-slate-200 hover:bg-slate-800"
-                              }`}
+                    {visibleFiles.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="py-16 text-center text-slate-400"
+                        >
+                          No files match this filter. Click Total to show all
+                          files.
+                        </td>
+                      </tr>
+                    ) : (
+                      visibleFiles.map((f) => (
+                        <React.Fragment key={f.id}>
+                          <tr className="border-b border-slate-800 hover:bg-slate-800">
+                            <td className="w-[48px] px-3 py-2">
+                              <input
+                                type="checkbox"
+                                checked={!!selectedIds[f.id]}
+                                onChange={() => toggleSelect(f.id)}
+                              />
+                            </td>
+                            <td
+                              className="min-w-[260px] px-3 py-2 text-sm whitespace-nowrap truncate"
+                              title={f.name}
                             >
-                              {expandedIds[f.id] ? "Hide ▴" : "View ▾"}
-                            </button>
-                          </td>
-                        </tr>
-                        {expandedIds[f.id] && (
-                          <tr
-                            key={`${f.id}-details`}
-                            className="border-b border-slate-800"
-                          >
-                            <td colSpan={8} className="px-3 py-2">
+                              <span className="truncate">{f.name}</span>
+                            </td>
+                            <td
+                              className="w-[120px] px-3 py-2 text-sm whitespace-nowrap truncate"
+                              title={f.extension}
+                            >
+                              {f.extension}
+                            </td>
+                            <td
+                              className="w-[100px] px-3 py-2 text-sm whitespace-nowrap truncate"
+                              title={bytesToKB(f.size)}
+                            >
+                              {bytesToKB(f.size)}
+                            </td>
+                            <td className="w-[260px] px-3 py-2 text-sm whitespace-normal">
                               <div
-                                className={`rounded-2xl p-4 ${getStatusAccent(f.status)} text-slate-200`}
+                                className="truncate font-medium"
+                                title={f.target}
                               >
-                                <div className="grid gap-3 lg:grid-cols-2">
-                                  <div className="space-y-2 text-xs leading-5 text-slate-300">
-                                    <div>
-                                      <span className="font-medium text-slate-100">
-                                        File name:
-                                      </span>{" "}
-                                      {f.name}
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-slate-100">
-                                        Extension:
-                                      </span>{" "}
-                                      {f.extension}
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-slate-100">
-                                        Status:
-                                      </span>{" "}
-                                      {f.status}
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-slate-100">
-                                        Category:
-                                      </span>{" "}
-                                      {f.category}
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-slate-100">
-                                        Target:
-                                      </span>{" "}
-                                      {f.target}
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-slate-100">
-                                        Source path:
-                                      </span>
-                                      <div className="break-words text-slate-300">
-                                        {f.path}
+                                {f.target}
+                              </div>
+                              {f.target !== f.category && (
+                                <div className="mt-1 text-xs text-slate-500">
+                                  {f.category} → {f.target}
+                                </div>
+                              )}
+                            </td>
+                            <td
+                              className="w-[130px] px-3 py-2 text-sm whitespace-nowrap truncate"
+                              title={f.status}
+                            >
+                              <StatusBadge status={f.status} />
+                            </td>
+                            <td className="w-[94px] px-3 py-2">
+                              <button
+                                onClick={() => toggleExpanded(f.id)}
+                                className={`inline-flex items-center gap-1 rounded-full border border-slate-700 px-2 py-1 text-xs font-medium transition ${
+                                  expandedIds[f.id]
+                                    ? "bg-slate-800 text-slate-100"
+                                    : "bg-slate-950 text-slate-200 hover:bg-slate-800"
+                                }`}
+                              >
+                                {expandedIds[f.id] ? "Hide ▴" : "View ▾"}
+                              </button>
+                            </td>
+                          </tr>
+                          {expandedIds[f.id] && (
+                            <tr
+                              key={`${f.id}-details`}
+                              className="border-b border-slate-800"
+                            >
+                              <td colSpan={7} className="px-3 py-2">
+                                <div
+                                  className={`rounded-2xl p-4 ${getStatusAccent(f.status)} text-slate-200`}
+                                >
+                                  <div className="grid gap-3 lg:grid-cols-2">
+                                    <div className="space-y-2 text-xs leading-5 text-slate-300">
+                                      <div>
+                                        <span className="font-medium text-slate-100">
+                                          File name:
+                                        </span>{" "}
+                                        {f.name}
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-slate-100">
+                                          Extension:
+                                        </span>{" "}
+                                        {f.extension}
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-slate-100">
+                                          Status:
+                                        </span>{" "}
+                                        {f.status}
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-slate-100">
+                                          Category:
+                                        </span>{" "}
+                                        {f.category}
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-slate-100">
+                                          Target:
+                                        </span>{" "}
+                                        {f.target}
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-slate-100">
+                                          Source path:
+                                        </span>
+                                        <div className="break-words text-slate-300">
+                                          {f.path}
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                  <div className="space-y-2 text-xs leading-5 text-slate-300">
-                                    <div>
-                                      <span className="font-medium text-slate-100">
-                                        Target path:
-                                      </span>
-                                      <div className="break-words text-slate-300">
-                                        {(f as any).targetPath ?? "n/a"}
+                                    <div className="space-y-2 text-xs leading-5 text-slate-300">
+                                      <div>
+                                        <span className="font-medium text-slate-100">
+                                          Target path:
+                                        </span>
+                                        <div className="break-words text-slate-300">
+                                          {(f as any).targetPath ?? "n/a"}
+                                        </div>
                                       </div>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-slate-100">
-                                        Classification source:
-                                      </span>{" "}
-                                      {f.classificationSource ?? "extension"}
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-slate-100">
-                                        Confidence:
-                                      </span>{" "}
-                                      {f.confidence ?? "n/a"}
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-slate-100">
-                                        Reason:
-                                      </span>{" "}
-                                      {f.reason ?? "n/a"}
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-slate-100">
-                                        Manual override:
-                                      </span>{" "}
-                                      {f.manualCategory ?? "none"}
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-slate-100">
-                                        Error message:
-                                      </span>{" "}
-                                      {f.status === "Failed"
-                                        ? "There was a problem moving this file."
-                                        : "None"}
+                                      <div>
+                                        <span className="font-medium text-slate-100">
+                                          Classification source:
+                                        </span>{" "}
+                                        {f.classificationSource ?? "extension"}
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-slate-100">
+                                          Confidence:
+                                        </span>{" "}
+                                        {f.confidence ?? "n/a"}
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-slate-100">
+                                          Reason:
+                                        </span>{" "}
+                                        {f.reason ?? "n/a"}
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-slate-100">
+                                          Manual override:
+                                        </span>{" "}
+                                        {f.manualCategory ?? "none"}
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-slate-100">
+                                          Error message:
+                                        </span>{" "}
+                                        {f.status === "Failed"
+                                          ? "There was a problem moving this file."
+                                          : "None"}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    ))}
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
