@@ -3,8 +3,10 @@ import { mockScan } from "./mock/mockScan";
 import StatusBadge from "./components/StatusBadge";
 import SummaryCard from "./components/SummaryCard";
 import TopControls from "./components/TopControls";
+import FileRow from "./components/FileRow";
 import ConfirmMoveModal from "./components/ConfirmMoveModal";
 import ConfirmUndoModal from "./components/ConfirmUndoModal";
+import ExpandedFileDetails from "./components/ExpandedFileDetails";
 import type { ScannedFile } from "./shared/types";
 
 type FileFilter = "all" | "selected" | "ready" | "conflicts" | "to-review";
@@ -73,27 +75,6 @@ export default function App() {
   const hideAllDetails = () => {
     setExpandedIds({});
     setExpandDetailsMode("none");
-  };
-
-  const getStatusAccent = (status: string) => {
-    switch (status) {
-      case "Ready":
-        return "border-l-4 border-emerald-400/60 bg-slate-900/70";
-      case "Conflict":
-        return "border-l-4 border-amber-400/60 bg-slate-900/70";
-      case "Failed":
-        return "border-l-4 border-rose-400/60 bg-slate-900/70";
-      case "To Review":
-        return "border-l-4 border-sky-400/60 bg-slate-900/70";
-      case "Skipped":
-        return "border-l-4 border-slate-500/60 bg-slate-900/70";
-      case "Moved":
-        return "border-l-4 border-cyan-400/60 bg-slate-900/70";
-      case "Undone":
-        return "border-l-4 border-violet-400/60 bg-slate-900/70";
-      default:
-        return "border-l-4 border-slate-700/60 bg-slate-900/70";
-    }
   };
 
   const summary = useMemo(
@@ -399,160 +380,15 @@ export default function App() {
                     ) : (
                       visibleFiles.map((f) => (
                         <React.Fragment key={f.id}>
-                          <tr className="border-b border-slate-800 hover:bg-slate-800">
-                            <td className="w-[48px] px-3 py-2">
-                              <input
-                                type="checkbox"
-                                checked={!!selectedIds[f.id]}
-                                onChange={() => toggleSelect(f.id)}
-                              />
-                            </td>
-                            <td
-                              className="min-w-[260px] px-3 py-2 text-sm whitespace-nowrap truncate"
-                              title={f.name}
-                            >
-                              <span className="truncate">{f.name}</span>
-                            </td>
-                            <td
-                              className="w-[120px] px-3 py-2 text-sm whitespace-nowrap truncate"
-                              title={f.extension}
-                            >
-                              {f.extension}
-                            </td>
-                            <td
-                              className="w-[100px] px-3 py-2 text-sm whitespace-nowrap truncate"
-                              title={bytesToKB(f.size)}
-                            >
-                              {bytesToKB(f.size)}
-                            </td>
-                            <td className="w-[260px] px-3 py-2 text-sm whitespace-normal">
-                              <div
-                                className="truncate font-medium"
-                                title={f.target}
-                              >
-                                {f.target}
-                              </div>
-                              {f.target !== f.category && (
-                                <div className="mt-1 text-xs text-slate-500">
-                                  {f.category} → {f.target}
-                                </div>
-                              )}
-                            </td>
-                            <td
-                              className="w-[130px] px-3 py-2 text-sm whitespace-nowrap truncate"
-                              title={f.status}
-                            >
-                              <StatusBadge status={f.status} />
-                            </td>
-                            <td className="w-[94px] px-3 py-2">
-                              <button
-                                onClick={() => toggleExpanded(f.id)}
-                                className={`inline-flex items-center gap-1 rounded-full border border-slate-700 px-2 py-1 text-xs font-medium transition ${
-                                  expandedIds[f.id]
-                                    ? "bg-slate-800 text-slate-100"
-                                    : "bg-slate-950 text-slate-200 hover:bg-slate-800"
-                                }`}
-                              >
-                                {expandedIds[f.id] ? "Hide ▴" : "View ▾"}
-                              </button>
-                            </td>
-                          </tr>
+                          <FileRow
+                            file={f}
+                            isSelected={!!selectedIds[f.id]}
+                            isExpanded={!!expandedIds[f.id]}
+                            onToggleSelect={() => toggleSelect(f.id)}
+                            onToggleExpanded={() => toggleExpanded(f.id)}
+                          />
                           {expandedIds[f.id] && (
-                            <tr
-                              key={`${f.id}-details`}
-                              className="border-b border-slate-800"
-                            >
-                              <td colSpan={7} className="px-3 py-2">
-                                <div
-                                  className={`rounded-2xl p-4 ${getStatusAccent(f.status)} text-slate-200`}
-                                >
-                                  <div className="grid gap-3 lg:grid-cols-2">
-                                    <div className="space-y-2 text-xs leading-5 text-slate-300">
-                                      <div>
-                                        <span className="font-medium text-slate-100">
-                                          File name:
-                                        </span>{" "}
-                                        {f.name}
-                                      </div>
-                                      <div>
-                                        <span className="font-medium text-slate-100">
-                                          Extension:
-                                        </span>{" "}
-                                        {f.extension}
-                                      </div>
-                                      <div>
-                                        <span className="font-medium text-slate-100">
-                                          Status:
-                                        </span>{" "}
-                                        {f.status}
-                                      </div>
-                                      <div>
-                                        <span className="font-medium text-slate-100">
-                                          Category:
-                                        </span>{" "}
-                                        {f.category}
-                                      </div>
-                                      <div>
-                                        <span className="font-medium text-slate-100">
-                                          Target:
-                                        </span>{" "}
-                                        {f.target}
-                                      </div>
-                                      <div>
-                                        <span className="font-medium text-slate-100">
-                                          Source path:
-                                        </span>
-                                        <div className="break-words text-slate-300">
-                                          {f.path}
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="space-y-2 text-xs leading-5 text-slate-300">
-                                      <div>
-                                        <span className="font-medium text-slate-100">
-                                          Target path:
-                                        </span>
-                                        <div className="break-words text-slate-300">
-                                          {(f as any).targetPath ?? "n/a"}
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <span className="font-medium text-slate-100">
-                                          Classification source:
-                                        </span>{" "}
-                                        {f.classificationSource ?? "extension"}
-                                      </div>
-                                      <div>
-                                        <span className="font-medium text-slate-100">
-                                          Confidence:
-                                        </span>{" "}
-                                        {f.confidence ?? "n/a"}
-                                      </div>
-                                      <div>
-                                        <span className="font-medium text-slate-100">
-                                          Reason:
-                                        </span>{" "}
-                                        {f.reason ?? "n/a"}
-                                      </div>
-                                      <div>
-                                        <span className="font-medium text-slate-100">
-                                          Manual override:
-                                        </span>{" "}
-                                        {f.manualCategory ?? "none"}
-                                      </div>
-                                      <div>
-                                        <span className="font-medium text-slate-100">
-                                          Error message:
-                                        </span>{" "}
-                                        {f.status === "Failed"
-                                          ? "There was a problem moving this file."
-                                          : "None"}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
+                            <ExpandedFileDetails file={f} />
                           )}
                         </React.Fragment>
                       ))
