@@ -65,6 +65,7 @@ Notes:
 - `electron/tests/movePlanner.test.ts` — tests written and passing
 - `electron/fileMover.ts` — safe file mover implemented and tests written and passing
 - `electron/historyStore.ts` — history store implemented and tests written and passing
+- `electron/undoService.ts` — undo service implemented and tests written and passing
 
 ---
 
@@ -79,7 +80,7 @@ The following real file-operation modules are not implemented yet:
 - [x] `electron/movePlanner.ts` — implemented and tests pass
 - [x] `electron/fileMover.ts` — implemented and tests pass
 - [x] `electron/historyStore.ts` — implemented and tests pass
-- [ ] `electron/undoService.ts` — undo the latest operation from history records
+- [x] `electron/undoService.ts` — implemented and tests pass
 
 ### Preload API — not connected
 
@@ -129,29 +130,28 @@ src/components/
 
 ## Next Step
 
-**Begin Electron main-process implementation by adding `electron/undoService.ts`.**
+**Begin Electron main-process implementation by adding `electron/ipcHandlers.ts`.**
 
-With `fileScanner`, `movePlanner`, `fileMover`, and `historyStore` in place and tested, the next work is implementing undo behavior in `electron/undoService.ts`.
+With `fileScanner`, `movePlanner`, `fileMover`, `historyStore`, and `undoService` in place and tested, the next work is wiring IPC channels for the renderer to call the Electron file organizer APIs.
 
 Do not change the mock renderer yet. Focus on:
 
-- reading the latest operation record from `history.json`
-- attempting to move files back to their original paths using safe move semantics
-- continuing processing remaining files if one file fails during undo
-- never overwriting existing files at the source path during undo
+- registering safe IPC channels in `electron/ipcHandlers.ts`
+- exposing scan, plan, move, undo, and history operations to the preload layer later
+- keeping the main process as the only place for real filesystem work
+- using structured messages and typed payloads only
 
 Do not add:
 
-- new IPC channels until undo behavior is defined and compiled
+- renderer implementations of the API yet
 - AI, OCR, or semantic classification
 - new dependencies unless explicitly approved
 
 ### Implementation guidance
 
-- Use `electron/historyStore.ts` to read the latest history record
-- Use safe file operations similar to `fileMover.ts` for per-file undo
-- Ensure undo is best-effort and file-level atomic (continue on error)
-- Add tests covering success, partial failures, and overwrite prevention
+- Keep `electron/ipcHandlers.ts` focused on channel registration and main-process dispatch
+- Do not expose raw `fs` or path details to the renderer
+- After `ipcHandlers.ts` compiles, connect it from `electron/main.ts` and update `electron/preload.ts` next
 
 ---
 
