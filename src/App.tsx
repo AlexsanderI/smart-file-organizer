@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from "react";
-import { mockScan } from "./mock/mockScan";
 import Sidebar from "./components/Sidebar";
 import TopControls from "./components/TopControls";
 import PreviewTable from "./components/PreviewTable";
@@ -9,25 +8,28 @@ import type { ScannedFile } from "./shared/types";
 
 type FileFilter = "all" | "selected" | "ready" | "conflicts" | "to-review";
 
-const defaultFolder = "C:/Users/you/Downloads (mock)";
-const alternateFolder = "C:/Users/you/Documents (mock)";
+type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: string };
+
+type MoveResultItem = {
+  id: string;
+  sourcePath: string;
+  targetPath: string;
+  status: ScannedFile["status"];
+  error?: string | null;
+};
 
 export default function App() {
-  const [selectedFolder, setSelectedFolder] = useState<string>(defaultFolder);
+  const [selectedFolder, setSelectedFolder] = useState<string>("");
   const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
-  const [files, setFiles] = useState<ScannedFile[]>(
-    mockScan.files.map((file: any) => ({ ...file })),
-  );
+  const [files, setFiles] = useState<ScannedFile[]>([]);
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [showUndoModal, setShowUndoModal] = useState(false);
-  const [lastOperation, setLastOperation] = useState<ScannedFile[] | null>(
-    null,
-  );
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
   const [expandDetailsMode, setExpandDetailsMode] = useState<
     "none" | "manual" | "selected" | "conflicts"
   >("none");
   const [activeFilter, setActiveFilter] = useState<FileFilter>("all");
+  const [scanError, setScanError] = useState<string | null>(null);
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((s) => ({ ...s, [id]: !s[id] }));
@@ -104,57 +106,109 @@ export default function App() {
     setSelectedIds(sel);
   };
   const clearSelection = () => setSelectedIds({});
-  const chooseFolder = () =>
-    setSelectedFolder((c) =>
-      c === defaultFolder ? alternateFolder : defaultFolder,
-    );
 
-  const resetMock = () => {
-    setFiles(mockScan.files.map((file: ScannedFile) => ({ ...file })));
-    setSelectedIds({});
-    setShowMoveModal(false);
-    setShowUndoModal(false);
-    setLastOperation(null);
-    setExpandedIds({});
-    setExpandDetailsMode("none");
-    setSelectedFolder(defaultFolder);
+  const scanFolder = async (folderPath: string) => {
+    const response = (await window.electron.scanFolder(
+      folderPath,
+    )) as ApiResponse<{ files: ScannedFile[] }>;
+
+    if (response.ok) {
+      setSelectedFolder(folderPath);
+      setScanError(null);
+      setFiles(response.data.files);
+      setSelectedIds({});
+      setExpandedIds({});
+      setExpandDetailsMode("none");
+      setActiveFilter("all");
+      return;
+    }
+
+    setScanError(response.error);
+    setFiles([]);
   };
 
-  const moveSelected = () => {
+  const chooseFolder = async () => {
+    const folder = await window.electron.selectFolder();
+    if (folder) {
+      await scanFolder(folder);
+    }
+  };
+
+  const rescanFolder = async () => {
+    if (!selectedFolder) {
+      await chooseFolder();
+      return;
+    }
+
+    await scanFolder(selectedFolder);
+  };
+
+  const moveSelected = async () => {
     const toMove = files.filter(
       (f) => selectedIds[f.id] && f.status === "Ready",
     );
-    if (toMove.length === 0) {
+
+    if (toMove.length === 0 || !selectedFolder) {
       setShowMoveModal(false);
       return;
     }
-    setFiles((prev) => {
-      const prevMap = new Map(prev.map((p) => [p.id, p]));
-      toMove.forEach((t) => {
-        const p = prevMap.get(t.id);
-        if (p) p.status = "Moved";
-      });
-      setLastOperation(toMove.map((t) => ({ ...t })));
-      return Array.from(prevMap.values());
-    });
+
+    const planResponse = (await window.electron.buildMovePlan({
+      scannedFiles: toMove,
+      destinationRoot: selectedFolder,
+    })) as ApiResponse<{ plan: unknown[] }>;
+
+    if (!planResponse.ok) {
+      setScanError(planResponse.error);
+      setShowMoveModal(false);
+      return;
+    }
+
+    const moveResponse = (await window.electron.moveFiles({
+      plans: planResponse.data.plan as any[],
+    })) as ApiResponse<{ results: MoveResultItem[] }>;
+
+    if (!moveResponse.ok) {
+      setScanError(moveResponse.error);
+      setShowMoveModal(false);
+      return;
+    }
+
+    const results = moveResponse.data.results;
+    setFiles((prev) =>
+      prev.map((file) => {
+        const result = results.find((r) => r.id === file.id);
+        if (!result) {
+          return file;
+        }
+
+        return {
+          ...file,
+          status: result.status,
+          reason: result.error ?? file.reason,
+        };
+      }),
+    );
+
     setSelectedIds({});
     setShowMoveModal(false);
   };
 
-  const undoLatest = () => {
-    if (!lastOperation) return setShowUndoModal(false);
-    setFiles((prev) => {
-      const prevMap = new Map(prev.map((p) => [p.id, p]));
-      lastOperation.forEach((op) => {
-        const p = prevMap.get(op.id);
-        if (p && p.status === "Moved") p.status = "Undone";
-      });
-      prevMap.forEach((v) => {
-        if (v.status === "Undone") v.status = "Ready";
-      });
-      return Array.from(prevMap.values());
-    });
-    setLastOperation(null);
+  const undoLatest = async () => {
+    const undoResponse = (await window.electron.undoLatestOperation()) as
+      | { ok: true; results?: MoveResultItem[] }
+      | { ok: false; error: string };
+
+    if (!undoResponse.ok) {
+      setScanError(undoResponse.error);
+      setShowUndoModal(false);
+      return;
+    }
+
+    if (selectedFolder) {
+      await scanFolder(selectedFolder);
+    }
+
     setShowUndoModal(false);
   };
 
@@ -212,7 +266,7 @@ export default function App() {
           canUndo={canUndo}
           onFilterChange={setActiveFilter}
           onChooseFolder={chooseFolder}
-          onResetMock={resetMock}
+          onRescan={rescanFolder}
           onClearSelection={clearSelection}
           onOpenMoveModal={openMoveModal}
           onOpenUndoModal={openUndoModal}
@@ -225,7 +279,11 @@ export default function App() {
                 <div>
                   <h2 className="text-xl font-semibold">Preview</h2>
                   <div className="text-slate-400 text-sm">
-                    Preview detected files (mock data)
+                    {scanError
+                      ? `Scan error: ${scanError}`
+                      : selectedFolder
+                        ? "Preview detected files"
+                        : "Choose a folder to scan"}
                   </div>
                 </div>
               </div>
@@ -263,7 +321,6 @@ export default function App() {
         </main>
       </div>
 
-      {/* Move Confirmation Modal */}
       {showMoveModal && (
         <ConfirmMoveModal
           onCancel={() => setShowMoveModal(false)}
@@ -271,7 +328,6 @@ export default function App() {
         />
       )}
 
-      {/* Undo Confirmation Modal */}
       {showUndoModal && (
         <ConfirmUndoModal
           onCancel={() => setShowUndoModal(false)}

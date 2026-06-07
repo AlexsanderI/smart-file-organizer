@@ -18,7 +18,7 @@ type SidebarProps = {
   canUndo: boolean;
   onFilterChange: (filter: FileFilter) => void;
   onChooseFolder: () => void;
-  onResetMock: () => void;
+  onRescan: () => void;
   onClearSelection: () => void;
   onOpenMoveModal: () => void;
   onOpenUndoModal: () => void;
@@ -33,7 +33,7 @@ export default function Sidebar({
   canUndo,
   onFilterChange,
   onChooseFolder,
-  onResetMock,
+  onRescan,
   onClearSelection,
   onOpenMoveModal,
   onOpenUndoModal,
@@ -47,9 +47,9 @@ export default function Sidebar({
       <div className="text-slate-400 text-xs mb-2">Selected folder</div>
       <div
         className="text-sm border border-slate-800 rounded px-2 py-1 bg-slate-950 break-words"
-        title={selectedFolder}
+        title={selectedFolder || "No folder selected"}
       >
-        {selectedFolder}
+        {selectedFolder || "No folder selected"}
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-2">
@@ -103,10 +103,10 @@ export default function Sidebar({
           Choose Folder
         </button>
         <button
-          onClick={onResetMock}
+          onClick={onRescan}
           className="w-full px-3 py-2 bg-transparent border border-slate-700 rounded hover:bg-slate-800 text-sm"
         >
-          Rescan / Reset Mock Data
+          Rescan Folder
         </button>
         <button
           onClick={onClearSelection}

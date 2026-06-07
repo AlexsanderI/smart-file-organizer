@@ -2,12 +2,12 @@ import { app, BrowserWindow } from "electron";
 import { join } from "path";
 import { registerIpcHandlers } from "./ipcHandlers";
 
-function createWindow() {
+function createWindow(preloadPath: string) {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: join(__dirname, "preload.js"),
+      preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -25,8 +25,12 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Register IPC handlers before creating any renderer windows so handlers
+  // are ready when the renderer's preload tries to invoke them.
   registerIpcHandlers();
-  createWindow();
+
+  const preloadPath = join(__dirname, "preload.js");
+  createWindow(preloadPath);
 });
 
 app.on("window-all-closed", () => {
@@ -37,6 +41,7 @@ app.on("window-all-closed", () => {
 
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+    const preloadPath = join(__dirname, "preload.js");
+    createWindow(preloadPath);
   }
 });

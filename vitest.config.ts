@@ -4,6 +4,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    include: ["src/tests/**/*.test.ts", "electron/tests/**/*.test.ts"],
+    include: [
+      "src/tests/**/*.test.ts",
+      "src/tests/**/*.test.tsx",
+      "electron/tests/**/*.test.ts",
+    ],
   },
 });
