@@ -66,6 +66,10 @@ Notes:
 - `electron/fileMover.ts` — safe file mover implemented and tests written and passing
 - `electron/historyStore.ts` — history store implemented and tests written and passing
 - `electron/undoService.ts` — undo service implemented and tests written and passing
+- `electron/ipcHandlers.ts` — IPC handlers implemented and tests written and passing
+- `electron/tests/ipcHandlers.test.ts` — tests written and passing
+
+Total: 36 tests passing across 6 test files
 
 ---
 
@@ -75,7 +79,7 @@ Notes:
 
 The following real file-operation modules are not implemented yet:
 
-- [ ] `electron/ipcHandlers.ts` — IPC channel registration
+- [x] `electron/ipcHandlers.ts` — IPC channel registration implemented and tests pass
 - [x] `electron/fileScanner.ts` — implemented and compiles; scanner tests pass
 - [x] `electron/movePlanner.ts` — implemented and tests pass
 - [x] `electron/fileMover.ts` — implemented and tests pass
@@ -130,28 +134,29 @@ src/components/
 
 ## Next Step
 
-**Begin Electron main-process implementation by adding `electron/ipcHandlers.ts`.**
+**Update `electron/preload.ts` to expose the full `FileOrganizerApi`, then wire `ipcHandlers.ts` into `electron/main.ts`.**
 
-With `fileScanner`, `movePlanner`, `fileMover`, `historyStore`, and `undoService` in place and tested, the next work is wiring IPC channels for the renderer to call the Electron file organizer APIs.
+With all Electron modules implemented and tested, the next step is to connect the renderer through the preload layer and main-process IPC registration.
 
 Do not change the mock renderer yet. Focus on:
 
-- registering safe IPC channels in `electron/ipcHandlers.ts`
-- exposing scan, plan, move, undo, and history operations to the preload layer later
-- keeping the main process as the only place for real filesystem work
-- using structured messages and typed payloads only
+- exposing `selectFolder()`, `scanFolder()`, `moveFiles()`, and `undoLatestOperation()` from `electron/preload.ts`
+- wiring `registerIpcHandlers()` in `electron/main.ts`
+- keeping the preload API narrow and typed
+- preserving `contextIsolation: true` and `nodeIntegration: false`
 
 Do not add:
 
-- renderer implementations of the API yet
+- renderer logic for calling the API yet
 - AI, OCR, or semantic classification
 - new dependencies unless explicitly approved
 
 ### Implementation guidance
 
-- Keep `electron/ipcHandlers.ts` focused on channel registration and main-process dispatch
-- Do not expose raw `fs` or path details to the renderer
-- After `ipcHandlers.ts` compiles, connect it from `electron/main.ts` and update `electron/preload.ts` next
+- Keep `electron/preload.ts` as a thin bridge to IPC
+- Have `electron/main.ts` import and call `registerIpcHandlers()` before creating the BrowserWindow
+- Return structured responses from IPC handlers, not raw `fs` objects
+- Verify the full Electron module graph compiles before moving to renderer wiring
 
 ---
 
