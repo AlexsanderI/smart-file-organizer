@@ -60,7 +60,11 @@ Notes:
 - `electron/main.ts` — opens a BrowserWindow, loads the Vite dev server or production renderer build, opens DevTools in development mode
 - `electron/preload.ts` — exposes only minimal safe data through `contextBridge`; no real file organizer API yet
 - `electron/fileScanner.ts` — real top-level scanner implemented and compiles
-- `electron/tests/fileScanner.test.ts` — tests written and passing (12 tests)
+- `electron/tests/fileScanner.test.ts` — tests written and passing
+- `electron/movePlanner.ts` — target path construction implemented
+- `electron/tests/movePlanner.test.ts` — tests written and passing
+- `electron/fileMover.ts` — safe file mover implemented and tests written and passing
+- `electron/historyStore.ts` — history store implemented and tests written and passing
 
 ---
 
@@ -72,9 +76,9 @@ The following real file-operation modules are not implemented yet:
 
 - [ ] `electron/ipcHandlers.ts` — IPC channel registration
 - [x] `electron/fileScanner.ts` — implemented and compiles; scanner tests pass
-- [ ] `electron/movePlanner.ts` — target path construction and conflict detection
-- [ ] `electron/fileMover.ts` — actual safe file moving and target folder creation
-- [ ] `electron/historyStore.ts` — read/write `history.json` in `app.getPath("userData")`
+- [x] `electron/movePlanner.ts` — implemented and tests pass
+- [x] `electron/fileMover.ts` — implemented and tests pass
+- [x] `electron/historyStore.ts` — implemented and tests pass
 - [ ] `electron/undoService.ts` — undo the latest operation from history records
 
 ### Preload API — not connected
@@ -125,30 +129,29 @@ src/components/
 
 ## Next Step
 
-**Begin Electron main-process implementation by adding `electron/movePlanner.ts`.**
+**Begin Electron main-process implementation by adding `electron/undoService.ts`.**
 
-With `electron/fileScanner.ts` implemented and tested, the next work is building target paths and detecting conflicts in `electron/movePlanner.ts`.
+With `fileScanner`, `movePlanner`, `fileMover`, and `historyStore` in place and tested, the next work is implementing undo behavior in `electron/undoService.ts`.
 
 Do not change the mock renderer yet. Focus on:
 
-- constructing deterministic target folder paths using `EXTENSION_RULES` and the scanned file metadata
-- detecting destination conflicts when a target file already exists
-- returning structured plan items (source path, target folder, target path, conflict flag)
-- keeping behavior local to the main process (no IPC changes yet)
+- reading the latest operation record from `history.json`
+- attempting to move files back to their original paths using safe move semantics
+- continuing processing remaining files if one file fails during undo
+- never overwriting existing files at the source path during undo
 
 Do not add:
 
-- actual file moving (leave to `fileMover.ts`)
-- undo logic (leave to `undoService.ts`)
+- new IPC channels until undo behavior is defined and compiled
 - AI, OCR, or semantic classification
 - new dependencies unless explicitly approved
 
 ### Implementation guidance
 
-- Keep `electron/movePlanner.ts` focused on path construction and conflict detection only
-- Use Node.js `path` utilities and `fs.existsSync` safely in the main process
-- Do not modify the renderer in this step
-- After `movePlanner.ts` compiles and tests pass, proceed to `electron/fileMover.ts`
+- Use `electron/historyStore.ts` to read the latest history record
+- Use safe file operations similar to `fileMover.ts` for per-file undo
+- Ensure undo is best-effort and file-level atomic (continue on error)
+- Add tests covering success, partial failures, and overwrite prevention
 
 ---
 

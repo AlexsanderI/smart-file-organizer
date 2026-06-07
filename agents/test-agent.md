@@ -78,4 +78,6 @@ You do not implement features — you verify them.
 
 - Run `npx vitest run` and confirm all tests pass
 - Report: N tests passed, N failed, coverage of which functions
-- Wait for user to confirm before updating `CURRENT_STATE.md`
+- Immediately update CURRENT_STATE.md:
+  mark the test file as [x] done
+  report how many tests passed

@@ -69,4 +69,7 @@ Do not proceed to step N+1 until step N compiles and is reviewed by the user.
 
 - Confirm `npm run build:electron` passes with no errors
 - Summarize exactly what files were created or changed
-- Wait for user to confirm before updating `CURRENT_STATE.md`
+- Immediately update CURRENT_STATE.md:
+  mark the implemented module as [x] done
+  mark the test file as [x] done
+  update Next Step to the following module
