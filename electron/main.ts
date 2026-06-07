@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from "electron";
 import { join } from "path";
+import { registerIpcHandlers } from "./ipcHandlers";
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -23,7 +24,10 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  registerIpcHandlers();
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
