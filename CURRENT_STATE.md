@@ -9,9 +9,9 @@
 
 **Phase 1 — in progress**
 
-Current focus: **refactor `src/App.tsx` into components**.
+Current focus: **implement Electron main-process scanning and file rules verification**.
 
-The Phase 1 mock UI is stable enough for now. Do **not** add real Electron file operations yet.
+The Phase 1 mock UI is stable enough for now. Start real Electron file operations with `electron/fileScanner.ts` next.
 
 ---
 
@@ -45,12 +45,14 @@ Notes:
 
 - File type icons were removed or skipped because they did not render cleanly.
 - Disabled buttons should remain visually disabled without using a forbidden/not-allowed cursor.
-- The UI still lives mostly inside `src/App.tsx` and needs component extraction.
+- The UI has been refactored and shared presentational components are now extracted into `src/components/`.
 
 ### Shared logic — implemented
 
 - `src/shared/types.ts` — type definitions for `ScannedFile`, `ScanSummary`, `MockScanResult`, `FileStatus`, and related Phase 1 data shapes
 - `src/shared/fileRules.ts` — `EXTENSION_RULES` map covering all 7 Phase 1 categories
+- `src/tests/fileRules.test.ts` — Vitest tests verifying extension mapping and unknown/case-insensitive behavior
+- `vitest.config.ts` — Vitest configuration for node-based test execution
 - `src/mock/mockScan.ts` — mock files covering main statuses: Ready, Conflict, Skipped, To Review
 
 ### Electron shell — minimal
@@ -91,11 +93,11 @@ The renderer still uses mock behavior:
 - [ ] "Undo Latest Operation" simulates undo in memory only
 - [ ] Renderer does not call real `window.electron.*` file organizer methods yet
 
-### Code structure — not refactored yet
+### Code structure — refactored
 
-- [ ] `src/App.tsx` is large and still contains UI state, handlers, table rendering, sidebar rendering, details rendering, and modals inline
-- [ ] `src/App.corrected.tsx` exists alongside `App.tsx` — resolve this before or during refactor by merging the correct version or deleting the duplicate
-- [ ] Component files are not extracted yet
+- [x] `src/App.tsx` has been refactored and now delegates UI rendering to extracted component files
+- [x] `src/App.corrected.tsx` has been deleted
+- [x] Presentational component files are extracted into `src/components/`
 
 Planned component direction:
 
@@ -114,8 +116,6 @@ src/components/
 
 ### Quality — missing
 
-- [ ] No tests yet
-- [ ] No Vitest setup yet
 - [ ] No ESLint / Prettier config yet
 - [ ] No packaging setup yet (`electron-builder` or `electron-forge`)
 
@@ -123,17 +123,20 @@ src/components/
 
 ## Next Step
 
-**Refactor `src/App.tsx` into components as a pure refactor.**
+**Begin Electron main-process implementation by adding `electron/fileScanner.ts`.**
 
-The mock UI is stable enough for now. The next task should improve code structure only.
+The shared file rules are validated and Vitest is configured, so the next work should start with real top-level folder scanning in the Electron main process.
 
-Do not change behavior during this step.
+Do not change the mock renderer yet. Focus on:
+
+- real top-level file scanning in `electron/fileScanner.ts`
+- ignoring directories and scanning only regular files at the selected folder root
+- using Node.js `fs` APIs in Electron main process code
+- preserving the Phase 1 deterministic scope
 
 Do not add:
 
-- Electron main process logic
-- IPC handlers
-- real folder scanning
+- IPC handlers until `fileScanner.ts` behavior is defined
 - real file moving
 - real undo
 - AI
@@ -142,33 +145,12 @@ Do not add:
 - semantic classification
 - new dependencies unless explicitly approved
 
-### Refactor rules
+### Implementation guidance
 
-- Keep state and handlers in `src/App.tsx` for the first refactor pass.
-- Extract presentational components only.
-- Components should receive props and callbacks.
-- Preserve the current UI layout, dark theme, mock behavior, filters, selection behavior, details behavior, modals, and status badges.
-- Do not combine component extraction with real Electron integration.
-- Do not rewrite the whole app from scratch.
-- Make one small extraction task at a time.
-
-Suggested extraction order:
-
-1. `StatusBadge.tsx`
-2. `SummaryCard.tsx`
-3. `Sidebar.tsx`
-4. `TopControls.tsx`
-5. `ExpandedFileDetails.tsx`
-6. `FileRow.tsx`
-7. `PreviewTable.tsx`
-8. `MoveConfirmModal.tsx`
-9. `UndoConfirmModal.tsx`
-
-After each refactor task, run:
-
-```bash
-npm run build:renderer
-```
+- Keep `electron/fileScanner.ts` focused on scanning only
+- Do not recurse into subfolders
+- Do not modify the renderer in this step
+- Later, wire the preload and IPC layers after `fileScanner.ts` works in isolation
 
 ---
 
