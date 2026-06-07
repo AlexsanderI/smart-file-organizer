@@ -57,8 +57,8 @@ Notes:
 
 ### Electron shell — minimal
 
-- `electron/main.ts` — opens a BrowserWindow, loads the Vite dev server or production renderer build, opens DevTools in development mode
-- `electron/preload.ts` — exposes only minimal safe data through `contextBridge`; no real file organizer API yet
+- `electron/main.ts` — opens a BrowserWindow, loads the Vite dev server or production renderer build, opens DevTools in development mode; now wired `registerIpcHandlers()`
+- `electron/preload.ts` — exposes the full `FileOrganizerApi` through `contextBridge`
 - `electron/fileScanner.ts` — real top-level scanner implemented and compiles
 - `electron/tests/fileScanner.test.ts` — tests written and passing
 - `electron/movePlanner.ts` — target path construction implemented
@@ -134,20 +134,20 @@ src/components/
 
 ## Next Step
 
-**Update `electron/preload.ts` to expose the full `FileOrganizerApi`, then wire `ipcHandlers.ts` into `electron/main.ts`.**
+**Connect the renderer to the real `window.electron.*` file organizer API instead of the mock implementation.**
 
-With all Electron modules implemented and tested, the next step is to connect the renderer through the preload layer and main-process IPC registration.
+With the Electron preload API exposed and IPC handlers wired, the next step is to update the renderer to call the real file organizer methods.
 
-Do not change the mock renderer yet. Focus on:
+Focus on:
 
-- exposing `selectFolder()`, `scanFolder()`, `moveFiles()`, and `undoLatestOperation()` from `electron/preload.ts`
-- wiring `registerIpcHandlers()` in `electron/main.ts`
-- keeping the preload API narrow and typed
-- preserving `contextIsolation: true` and `nodeIntegration: false`
+- replacing mock folder selection with `window.electron.selectFolder()`
+- replacing mock scan operations with `window.electron.scanFolder(folderPath)`
+- replacing mock move actions with `window.electron.moveFiles({ plans })`
+- replacing mock undo with `window.electron.undoLatestOperation()`
+- preserving the renderer-only UI responsibilities and not exposing raw Node.js APIs
 
 Do not add:
 
-- renderer logic for calling the API yet
 - AI, OCR, or semantic classification
 - new dependencies unless explicitly approved
 
