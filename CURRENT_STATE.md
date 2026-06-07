@@ -9,9 +9,9 @@
 
 **Phase 1 — in progress**
 
-Current focus: **implement Electron main-process scanning and file rules verification**.
+Current focus: **implement Electron main-process move planning and conflict detection**.
 
-The Phase 1 mock UI is stable enough for now. Start real Electron file operations with `electron/fileScanner.ts` next.
+The Phase 1 mock UI is stable enough for now. `electron/fileScanner.ts` is implemented; next work is `electron/movePlanner.ts`.
 
 ---
 
@@ -59,6 +59,8 @@ Notes:
 
 - `electron/main.ts` — opens a BrowserWindow, loads the Vite dev server or production renderer build, opens DevTools in development mode
 - `electron/preload.ts` — exposes only minimal safe data through `contextBridge`; no real file organizer API yet
+- `electron/fileScanner.ts` — real top-level scanner implemented and compiles
+- `electron/tests/fileScanner.test.ts` — tests written and passing (12 tests)
 
 ---
 
@@ -69,7 +71,7 @@ Notes:
 The following real file-operation modules are not implemented yet:
 
 - [ ] `electron/ipcHandlers.ts` — IPC channel registration
-- [ ] `electron/fileScanner.ts` — real top-level folder scan using Node.js `fs`
+- [x] `electron/fileScanner.ts` — implemented and compiles; scanner tests pass
 - [ ] `electron/movePlanner.ts` — target path construction and conflict detection
 - [ ] `electron/fileMover.ts` — actual safe file moving and target folder creation
 - [ ] `electron/historyStore.ts` — read/write `history.json` in `app.getPath("userData")`
@@ -123,34 +125,30 @@ src/components/
 
 ## Next Step
 
-**Begin Electron main-process implementation by adding `electron/fileScanner.ts`.**
+**Begin Electron main-process implementation by adding `electron/movePlanner.ts`.**
 
-The shared file rules are validated and Vitest is configured, so the next work should start with real top-level folder scanning in the Electron main process.
+With `electron/fileScanner.ts` implemented and tested, the next work is building target paths and detecting conflicts in `electron/movePlanner.ts`.
 
 Do not change the mock renderer yet. Focus on:
 
-- real top-level file scanning in `electron/fileScanner.ts`
-- ignoring directories and scanning only regular files at the selected folder root
-- using Node.js `fs` APIs in Electron main process code
-- preserving the Phase 1 deterministic scope
+- constructing deterministic target folder paths using `EXTENSION_RULES` and the scanned file metadata
+- detecting destination conflicts when a target file already exists
+- returning structured plan items (source path, target folder, target path, conflict flag)
+- keeping behavior local to the main process (no IPC changes yet)
 
 Do not add:
 
-- IPC handlers until `fileScanner.ts` behavior is defined
-- real file moving
-- real undo
-- AI
-- OCR
-- content analysis
-- semantic classification
+- actual file moving (leave to `fileMover.ts`)
+- undo logic (leave to `undoService.ts`)
+- AI, OCR, or semantic classification
 - new dependencies unless explicitly approved
 
 ### Implementation guidance
 
-- Keep `electron/fileScanner.ts` focused on scanning only
-- Do not recurse into subfolders
+- Keep `electron/movePlanner.ts` focused on path construction and conflict detection only
+- Use Node.js `path` utilities and `fs.existsSync` safely in the main process
 - Do not modify the renderer in this step
-- Later, wire the preload and IPC layers after `fileScanner.ts` works in isolation
+- After `movePlanner.ts` compiles and tests pass, proceed to `electron/fileMover.ts`
 
 ---
 
