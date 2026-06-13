@@ -17,9 +17,9 @@ The Phase 1 mock UI is stable enough for now. `electron/fileScanner.ts` is imple
 
 ## What Is Actually Working
 
-### Renderer (UI) — stable mock implementation in `src/App.tsx`
+### Renderer (UI) — connected to real Electron IPC
 
-The current UI works with mock data only.
+The current UI is connected to the real Electron IPC and uses real scan/move operations.
 
 Implemented:
 
@@ -33,13 +33,11 @@ Implemented:
 - Clear active filter feedback above the table
 - Status badges for file states such as Ready, Conflict, Skipped, To Review, Moved, Failed, Undone
 - Primary visual styling for `Move Selected Files` when files are selected
-- Move confirmation modal (UI only — no real file move)
-- Undo confirmation modal (UI only — no real undo)
-- Mock folder switching via "Choose Folder" button (cycles between hardcoded mock paths)
-- "Rescan / Reset Mock Data" button reloads mock data
+- Move confirmation modal and Undo confirmation modal connected to real IPC actions
+- Real folder selection via IPC and real scan/move operations
 - Status-based row color accents
-- In-memory mock move: changes file status to Moved/Skipped and enables the Undo button
-- In-memory mock undo: restores previous file states from the latest in-memory operation snapshot
+- File scan and move working correctly through Electron IPC
+- Bug found: undo shows "no history" because history is not saved after move
 
 Notes:
 
@@ -95,14 +93,14 @@ The full safe preload API is not implemented yet:
 - [ ] `moveFiles()` — real move operation is not implemented
 - [ ] `undoLatestOperation()` — real undo is not implemented
 
-### Renderer — not connected to real data
+### Renderer — connected to real data
 
-The renderer still uses mock behavior:
+The renderer now uses real Electron IPC for file scan and move operations.
 
-- [ ] "Choose Folder" uses mock folder switching only
-- [ ] "Move Selected Files" simulates file moving in memory only
-- [ ] "Undo Latest Operation" simulates undo in memory only
-- [ ] Renderer does not call real `window.electron.*` file organizer methods yet
+- [x] "Choose Folder" uses real folder selection via IPC
+- [x] "Move Selected Files" uses real move operations via IPC
+- [x] "Undo Latest Operation" now logs move history persistence and path resolution for `history.json`
+- [x] Renderer calls real `window.electron.*` file organizer methods
 
 ### Code structure — refactored
 
@@ -134,17 +132,16 @@ src/components/
 
 ## Next Step
 
-**Connect the renderer to the real `window.electron.*` file organizer API instead of the mock implementation.**
+**Verify runtime history file creation in AppData/Roaming after move operation.**
 
-With the Electron preload API exposed and IPC handlers wired, the next step is to update the renderer to call the real file organizer methods.
+The electron move handler now logs `appendHistory()` results and resolves the `history.json` path via `app.getPath("userData")`.
 
 Focus on:
 
-- replacing mock folder selection with `window.electron.selectFolder()`
-- replacing mock scan operations with `window.electron.scanFolder(folderPath)`
-- replacing mock move actions with `window.electron.moveFiles({ plans })`
-- replacing mock undo with `window.electron.undoLatestOperation()`
-- preserving the renderer-only UI responsibilities and not exposing raw Node.js APIs
+- confirming the runtime path printed in logs is the expected user data folder
+- verifying `history.json` is created after a successful move
+- ensuring `undoLatestOperation()` can now read the saved history
+- preserving safe file move behavior and structured IPC responses
 
 Do not add:
 

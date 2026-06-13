@@ -5,6 +5,7 @@ const showOpenDialogMock = vi.fn();
 const scanFolderMock = vi.fn();
 const buildMovePlanMock = vi.fn();
 const moveFilesMock = vi.fn();
+const appendHistoryMock = vi.fn();
 const readHistoryMock = vi.fn();
 const undoLatestOperationMock = vi.fn();
 
@@ -26,7 +27,10 @@ vi.doMock("../movePlanner", () => ({
   default: buildMovePlanMock,
 }));
 vi.doMock("../fileMover", () => ({ __esModule: true, default: moveFilesMock }));
-vi.doMock("../historyStore", () => ({ readHistory: readHistoryMock }));
+vi.doMock("../historyStore", () => ({
+  readHistory: readHistoryMock,
+  appendHistory: appendHistoryMock,
+}));
 vi.doMock("../undoService", () => ({
   undoLatestOperation: undoLatestOperationMock,
 }));
@@ -43,6 +47,7 @@ describe("electron/ipcHandlers.ts", () => {
     scanFolderMock.mockReset();
     buildMovePlanMock.mockReset();
     moveFilesMock.mockReset();
+    appendHistoryMock.mockReset();
     readHistoryMock.mockReset();
     undoLatestOperationMock.mockReset();
   });
@@ -150,23 +155,38 @@ describe("electron/ipcHandlers.ts", () => {
       },
     ];
     moveFilesMock.mockReturnValue(fakeResults);
+    appendHistoryMock.mockReturnValue({
+      ok: true,
+      record: {
+        id: "history-1",
+        timestamp: new Date().toISOString(),
+        operation: { moved: fakeResults },
+      },
+    });
 
     registerIpcHandlers();
 
+    const requestPlans = [
+      {
+        id: "1",
+        sourcePath: "/src/file.txt",
+        targetPath: "/dest/file.txt",
+        targetFolder: "01_Documents",
+        conflict: false,
+      },
+    ];
+
     const response = registeredHandlers[IPC_CHANNELS.moveFiles](null, {
-      plans: [
-        {
-          id: "1",
-          sourcePath: "/src/file.txt",
-          targetPath: "/dest/file.txt",
-          targetFolder: "01_Documents",
-          conflict: false,
-        },
-      ],
+      plans: requestPlans,
     });
 
     expect(response).toEqual({ ok: true, data: { results: fakeResults } });
-    expect(moveFilesMock).toHaveBeenCalled();
+    expect(moveFilesMock).toHaveBeenCalledWith(requestPlans);
+    expect(appendHistoryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: { plan: requestPlans, moved: fakeResults },
+      }),
+    );
   });
 
   it("returns the undo operation result directly", () => {

@@ -3,7 +3,7 @@ import { ScannedFile } from "../src/shared/types";
 import { scanFolder } from "./fileScanner";
 import buildMovePlan, { MovePlanItem } from "./movePlanner";
 import moveFiles, { MoveResultItem } from "./fileMover";
-import { readHistory, HistoryRecord } from "./historyStore";
+import { appendHistory, readHistory, HistoryRecord } from "./historyStore";
 import { undoLatestOperation, UndoResult } from "./undoService";
 
 export const IPC_CHANNELS = {
@@ -88,6 +88,23 @@ export function registerIpcHandlers() {
   ipcMain.handle(IPC_CHANNELS.moveFiles, (_, request: MoveFilesRequest) => {
     try {
       const results = moveFiles(request.plans);
+      console.log("ipcHandlers.moveFiles: moveFiles completed", {
+        planned: request.plans.length,
+        resultsCount: results.length,
+      });
+
+      const historyResult = appendHistory({
+        id: `move-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        operation: { plan: request.plans, moved: results },
+      });
+      console.log("ipcHandlers.moveFiles: appendHistory result", historyResult);
+
+      if (!historyResult.ok) {
+        return errorResponse(
+          `move succeeded but failed to save history: ${historyResult.error}`,
+        );
+      }
+
       return safeResponse<MoveFilesResponse>({ results });
     } catch (err: any) {
       return errorResponse(String(err));

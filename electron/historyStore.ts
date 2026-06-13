@@ -10,7 +10,9 @@ export interface HistoryRecord {
 
 export function getHistoryFilePath(): string {
   const userData = app.getPath("userData");
-  return path.join(userData, "history.json");
+  const filePath = path.join(userData, "history.json");
+  console.log("historyStore.getHistoryFilePath", { userData, filePath });
+  return filePath;
 }
 
 export function readHistory(): HistoryRecord[] {
@@ -34,8 +36,12 @@ export function writeHistory(
     const dir = path.dirname(filePath);
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(filePath, JSON.stringify(records, null, 2), "utf8");
+    console.log("historyStore.writeHistory: history file written", {
+      filePath,
+    });
     return { ok: true };
   } catch (err: any) {
+    console.error("historyStore.writeHistory: failed to write history", err);
     return { ok: false, error: String(err) };
   }
 }
